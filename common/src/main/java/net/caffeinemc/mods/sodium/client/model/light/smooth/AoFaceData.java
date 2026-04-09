@@ -1,9 +1,9 @@
 package net.caffeinemc.mods.sodium.client.model.light.smooth;
 
 import net.caffeinemc.mods.sodium.client.model.light.data.LightDataAccess;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.LightCoordsUtil;
 
 import static net.caffeinemc.mods.sodium.client.model.light.data.ArrayLightDataCache.*;
 
@@ -251,16 +251,16 @@ class AoFaceData {
         // FIX: Apply the fullbright lightmap from emissive blocks at the very end so it cannot influence
         // the minimum lightmap and produce incorrect results (for example, sculk sensors in a dark room)
         if (aem) {
-            a = LightCoordsUtil.FULL_BRIGHT;
+            a = LightTexture.FULL_BRIGHT;
         }
         if (bem) {
-            b = LightCoordsUtil.FULL_BRIGHT;
+            b = LightTexture.FULL_BRIGHT;
         }
         if (cem) {
-            c = LightCoordsUtil.FULL_BRIGHT;
+            c = LightTexture.FULL_BRIGHT;
         }
         if (dem) {
-            d = LightCoordsUtil.FULL_BRIGHT;
+            d = LightTexture.FULL_BRIGHT;
         }
 
         return ((a + b + c + d) >> 2) & 0xFF00FF;

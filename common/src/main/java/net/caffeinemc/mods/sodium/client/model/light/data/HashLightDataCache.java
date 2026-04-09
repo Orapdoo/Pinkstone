@@ -2,7 +2,7 @@ package net.caffeinemc.mods.sodium.client.model.light.data;
 
 import it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap;
 import net.minecraft.core.BlockPos;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 
 /**
  * A light data cache which uses a hash table to store previously accessed values.

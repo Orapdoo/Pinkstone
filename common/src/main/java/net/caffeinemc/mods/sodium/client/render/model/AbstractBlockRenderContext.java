@@ -14,14 +14,15 @@ import net.caffeinemc.mods.sodium.client.services.SodiumModelData;
 import net.caffeinemc.mods.sodium.client.util.DirectionUtil;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
@@ -47,7 +48,11 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
             renderQuad(this);
         }
 
-        public void emitPart(BlockStateModelPart part, Predicate<@Nullable Direction> cullTest, Consumer<MutableQuadViewImpl> emitter) {
+        public void markInvalidToDowngrade() {
+            AbstractBlockRenderContext.this.allowDowngrade = false;
+        }
+
+        public void emitPart(BlockModelPart part, Predicate<@Nullable Direction> cullTest, Consumer<MutableQuadViewImpl> emitter) {
             AbstractBlockRenderContext.this.bufferDefaultModel(part, cullTest, emitter);
         }
     }
@@ -73,16 +78,18 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
      */
     protected BlockPos pos;
 
+    protected ChunkSectionLayer defaultRenderType;
+
+    protected boolean allowDowngrade;
+
     private final ShapeComparisonCache occlusionCache = new ShapeComparisonCache();
     private final BlockPos.MutableBlockPos cachedPositionObject = new BlockPos.MutableBlockPos();
-    protected boolean enableCulling = true;
+    private boolean enableCulling = true;
     // Cull cache (as it's checked per-quad instead of once per side like in vanilla)
     private int cullCompletionFlags;
     private int cullResultFlags;
 
     protected RandomSource random;
-
-    protected boolean forceOpaque;
 
     /**
      * Must be set by the subclass constructor.
@@ -171,7 +178,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     /**
      * Pipeline entrypoint - handles transform and culling checks.
      */
-    protected void renderQuad(MutableQuadViewImpl quad) {
+    private void renderQuad(MutableQuadViewImpl quad) {
         if (this.isFaceCulled(quad.getCullFace())) {
             return;
         }
@@ -192,7 +199,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
     }
 
     protected void prepareAoInfo(boolean modelAo) {
-        this.useAmbientOcclusion = this.slice.useAmbientOcclusion();
+        this.useAmbientOcclusion = Minecraft.useAmbientOcclusion();
         // Ignore the incorrect IDEA warning here.
         this.defaultLightMode = this.useAmbientOcclusion && modelAo && (state != null && PlatformBlockAccess.getInstance().getLightEmission(state, level, pos) == 0) ? LightMode.SMOOTH : LightMode.FLAT;
     }
@@ -204,7 +211,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
 
         if (emissive) {
             for (int i = 0; i < 4; i++) {
-                quad.setLight(i, LightCoordsUtil.FULL_BRIGHT);
+                quad.setLight(i, LightTexture.FULL_BRIGHT);
             }
         } else {
             int[] lightmaps = data.lm;
@@ -215,12 +222,16 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         }
     }
 
-    private List<BlockStateModelPart> parts = new ObjectArrayList<>();
+    private List<BlockModelPart> parts = new ObjectArrayList<>();
 
     /* Handling of vanilla models - this is the hot path for non-modded models */
-    public void bufferDefaultModel(BlockStateModelPart part, Predicate<Direction> cullTest, Consumer<MutableQuadViewImpl> emitter) {
+    public void bufferDefaultModel(BlockModelPart part, Predicate<Direction> cullTest, Consumer<MutableQuadViewImpl> emitter) {
         MutableQuadViewImpl editorQuad = this.editorQuad;
         this.prepareAoInfo(part.useAmbientOcclusion());
+
+        ChunkSectionLayer renderType = PlatformModelAccess.getInstance().getPartRenderType(part, state, this.defaultRenderType);
+        ChunkSectionLayer defaultType = this.defaultRenderType;
+        this.defaultRenderType = renderType;
 
         for (int i = 0; i <= ModelHelper.NULL_FACE_ID; i++) {
             final Direction cullFace = ModelHelper.faceFromIndex(i);
@@ -230,16 +241,17 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
             }
 
             // TODO NeoForge 1.21.5
-            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, part, state, cullFace, random);
+            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(part, state, renderType, slice, pos);
+
+            final List<BakedQuad> quads = PlatformModelAccess.getInstance().getQuads(level, pos, part, state, cullFace, random, renderType);
             final int count = quads.size();
-            AmbientOcclusionMode ao = PlatformBlockAccess.getInstance().usesAmbientOcclusion(part, state, null, slice, pos);
 
             for (int j = 0; j < count; j++) {
                 final BakedQuad q = quads.get(j);
                 editorQuad.fromBakedQuad(q);
                 editorQuad.setCullFace(cullFace);
+                editorQuad.setRenderType(renderType);
                 editorQuad.setAmbientOcclusion(ao.toTriState());
-                editorQuad.setShadeMode(SodiumShadeMode.ENHANCED);
                 // Call processQuad instead of emit for efficiency
                 // (avoid unnecessarily clearing data, trying to apply transforms, and performing cull check again)
 
@@ -248,5 +260,7 @@ public abstract class AbstractBlockRenderContext extends AbstractRenderContext {
         }
 
         editorQuad.clear();
+
+        this.defaultRenderType = defaultType;
     }
 }
