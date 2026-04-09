@@ -47,17 +47,16 @@ dependencies {
 
     implementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
 
-    fun addEmbeddedFabricModule(name: String) {
-        val module = fabricApi.module(name, BuildConfig.FABRIC_API_VERSION)
-        implementation(module)
-        include(module)
+    fun addEmbeddedDependency(dependency: String) {
+        implementation(dependency)
+        include(dependency)
     }
 
     // Fabric API modules
-    addEmbeddedFabricModule("fabric-api-base")
-    addEmbeddedFabricModule("fabric-block-getter-api-v2")
-    addEmbeddedFabricModule("fabric-rendering-v1")
-    addEmbeddedFabricModule("fabric-renderer-api-v1")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-api-base:1.0.5+4ebb5c083e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-block-view-api-v2:1.0.39+4ebb5c083e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-rendering-v1:16.2.7+f4ffd2e53e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-renderer-api-v1:8.0.1+9c919dacc9")
 }
 
 fun exportSourceSetJava(name: String, sourceSet: SourceSet) {
