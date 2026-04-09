@@ -4,13 +4,13 @@ import net.caffeinemc.mods.sodium.api.util.NormI8;
 import net.caffeinemc.mods.sodium.client.model.quad.ModelQuadView;
 import net.caffeinemc.mods.sodium.client.render.model.AmbientOcclusionMode;
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
-import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry;
+import net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderHandlerRegistry;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,38 +28,30 @@ public class FabricBlockAccess implements PlatformBlockAccess {
         float div = 0;
 
         if (normalX > 0) {
-            sum += normalX * getShade(blockView, Direction.EAST, hasShade);
+            sum += normalX * blockView.getShade(Direction.EAST, hasShade);
             div += normalX;
         } else if (normalX < 0) {
-            sum += -normalX * getShade(blockView, Direction.WEST, hasShade);
+            sum += -normalX * blockView.getShade(Direction.WEST, hasShade);
             div -= normalX;
         }
 
         if (normalY > 0) {
-            sum += normalY * getShade(blockView, Direction.UP, hasShade);
+            sum += normalY * blockView.getShade(Direction.UP, hasShade);
             div += normalY;
         } else if (normalY < 0) {
-            sum += -normalY * getShade(blockView, Direction.DOWN, hasShade);
+            sum += -normalY * blockView.getShade(Direction.DOWN, hasShade);
             div -= normalY;
         }
 
         if (normalZ > 0) {
-            sum += normalZ * getShade(blockView, Direction.SOUTH, hasShade);
+            sum += normalZ * blockView.getShade(Direction.SOUTH, hasShade);
             div += normalZ;
         } else if (normalZ < 0) {
-            sum += -normalZ * getShade(blockView, Direction.NORTH, hasShade);
+            sum += -normalZ * blockView.getShade(Direction.NORTH, hasShade);
             div -= normalZ;
         }
 
         return sum / div;
-    }
-
-    private float getShade(BlockAndTintGetter blockView, Direction direction, boolean hasShade) {
-        if (hasShade) {
-            return blockView.cardinalLighting().byFace(direction);
-        } else {
-            return blockView.cardinalLighting().up();
-        }
     }
 
     @Override
@@ -74,7 +66,7 @@ public class FabricBlockAccess implements PlatformBlockAccess {
 
     @Override
     public boolean shouldShowFluidOverlay(BlockState block, BlockAndTintGetter level, BlockPos pos, FluidState fluidState) {
-        return FluidRenderingRegistry.isBlockTransparent(block.getBlock());
+        return FluidRenderHandlerRegistry.INSTANCE.isBlockTransparent(block.getBlock());
     }
 
     @Override
@@ -88,7 +80,7 @@ public class FabricBlockAccess implements PlatformBlockAccess {
     }
 
     @Override
-    public AmbientOcclusionMode usesAmbientOcclusion(BlockStateModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos) {
+    public AmbientOcclusionMode usesAmbientOcclusion(BlockModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos) {
         return model.useAmbientOcclusion() ? AmbientOcclusionMode.DEFAULT : AmbientOcclusionMode.DISABLED;
     }
 

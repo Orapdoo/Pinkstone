@@ -26,9 +26,9 @@ import net.minecraft.client.renderer.rendertype.RenderType;
  * Allowed values for MutableQuadView#itemRenderType(RenderType).
  */
 public enum ItemRenderType {
-	CUTOUT(Sheets.cutoutItemSheet()),
+	CUTOUT(Sheets.cutoutBlockSheet()),
 	TRANSLUCENT(Sheets.translucentItemSheet()),
-	CUTOUT_BLOCK(Sheets.cutoutBlockItemSheet()),
+	CUTOUT_BLOCK(Sheets.cutoutBlockSheet()),
 	TRANSLUCENT_BLOCK(Sheets.translucentBlockItemSheet());
 
 	static final RenderType[] RENDER_TYPES = Arrays.stream(ItemRenderType.values()).map(t -> t.renderType).toArray(RenderType[]::new);

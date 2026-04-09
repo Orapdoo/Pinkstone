@@ -1,146 +1,267 @@
-package net.caffeinemc.mods.sodium.client.render.frapi.render;
+/*
+ * Copyright (c) 2016, 2017, 2018, 2019 FabricMC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import java.util.List;
+package net.caffeinemc.mods.sodium.client.render.frapi.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.MutableQuadViewWrapper;
-import net.caffeinemc.mods.sodium.client.render.model.EncodingFormat;
-import net.caffeinemc.mods.sodium.client.render.model.MutableQuadViewImpl;
-import net.caffeinemc.mods.sodium.mixin.frapi.ItemFeatureRendererAccessor;
-import org.jspecify.annotations.Nullable;
-
+import com.mojang.math.MatrixUtil;
+import net.caffeinemc.mods.sodium.api.texture.SpriteUtil;
+import net.caffeinemc.mods.sodium.api.util.ColorMixer;
+import net.caffeinemc.mods.sodium.client.render.frapi.wrapper.ExtendedMutableQuadViewImpl;
+import net.caffeinemc.mods.sodium.client.render.helper.ColorHelper;
+import net.caffeinemc.mods.sodium.client.render.model.*;
+import net.caffeinemc.mods.sodium.client.render.frapi.mesh.MeshViewImpl;
+import net.caffeinemc.mods.sodium.client.render.texture.SpriteFinderCache;
+import net.caffeinemc.mods.sodium.mixin.frapi.ItemRendererAccessor;
+import net.fabricmc.fabric.api.renderer.v1.mesh.MeshView;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadAtlas;
+import net.fabricmc.fabric.api.renderer.v1.mesh.QuadEmitter;
+import net.fabricmc.fabric.api.renderer.v1.render.ItemRenderTypeGetter;
+import net.fabricmc.fabric.api.renderer.v1.render.RenderLayerHelper;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.OutlineBufferSource;
-import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
-import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.client.renderer.Sheets;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockStateModel;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.level.levelgen.SingleThreadedRandomSource;
+import org.jspecify.annotations.Nullable;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 
-import net.fabricmc.fabric.api.client.renderer.v1.mesh.MeshView;
-import net.fabricmc.fabric.api.client.renderer.v1.mesh.QuadEmitter;
-import net.fabricmc.fabric.api.client.renderer.v1.render.FabricLayerRenderState;
-import net.fabricmc.fabric.api.client.renderer.v1.render.FabricSubmitNodeCollection;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
- * Used during item buffering to support geometry added through {@link FabricLayerRenderState#emitter()}.
+ * The render context used for item rendering.
  */
-public class ItemRenderContext {
-	private final MutableQuadViewWrapper emitter;
+public class ItemRenderContext extends AbstractRenderContext {
+    /** Value vanilla uses for item rendering.  The only sensible choice, of course.  */
+    private static final long ITEM_RANDOM_SEED = 42L;
+    private static final int GLINT_COUNT = ItemStackRenderState.FoilType.values().length;
+    private @Nullable ItemRenderTypeGetter renderTypeGetter;
 
-    public ItemRenderContext() {
-        emitter = new MutableQuadViewWrapper(null);
+    public class ItemEmitter extends MutableQuadViewImpl {
+        {
+            data = new int[EncodingFormat.TOTAL_STRIDE];
+            clear();
+        }
 
-        var x = new MutableQuadViewImpl() {
-            {
-                data = new int[EncodingFormat.TOTAL_STRIDE];
-                clear();
-            }
 
-            @Override
-            public void emitDirectly() {
-                bufferQuad(emitter);
-            }
-        };
-
-        emitter.setDelegate(x);
+        @Override
+        public void emitDirectly() {
+            renderQuad(this);
+        }
     }
 
-	private MultiBufferSource bufferSource;
-	private OutlineBufferSource outlineBufferSource;
-	private boolean translucent;
+    private final MutableQuadViewImpl editorQuad = new ItemEmitter();
 
-	private FabricSubmitNodeCollection.ExtendedItemSubmit submit;
-	private PoseStack.@Nullable Pose foilDecalPose;
+    public ItemRenderContext() {}
 
-	public void prepare(MultiBufferSource.BufferSource bufferSource, OutlineBufferSource outlineBufferSource, boolean translucent) {
-		this.bufferSource = bufferSource;
-		this.outlineBufferSource = outlineBufferSource;
-		this.translucent = translucent;
-	}
+    private final RandomSource random = new SingleThreadedRandomSource(ITEM_RANDOM_SEED);
+    private final Supplier<RandomSource> randomSupplier = () -> {
+        random.setSeed(ITEM_RANDOM_SEED);
+        return random;
+    };
 
-	public void clear() {
-		bufferSource = null;
-		outlineBufferSource = null;
-	}
+    private ItemDisplayContext transformMode;
+    private PoseStack poseStack;
+    private Matrix4f matPosition;
+    private boolean trustedNormals;
+    private Matrix3f matNormal;
+    private MultiBufferSource bufferSource;
+    private int lightmap;
+    private int overlay;
+    private int[] colors;
+    private boolean ignoreQuadGlint;
 
-	public void renderItem(FabricSubmitNodeCollection.ExtendedItemSubmit submit) {
-		this.submit = submit;
+    private RenderType defaultLayer;
+    private ItemStackRenderState.FoilType defaultGlint;
 
-		if (submit.outlineColor() != 0) {
-			outlineBufferSource.setColor(submit.outlineColor());
-		}
+    private PoseStack.Pose specialGlintEntry;
+    private final VertexConsumer[] vertexConsumerCache = new VertexConsumer[3 * GLINT_COUNT];
 
-		bufferQuads(submit.quads(), submit.mesh());
+    @Override
+    public MutableQuadViewImpl getForEmitting() {
+        editorQuad.clear();
+        return editorQuad;
+    }
 
-		foilDecalPose = null;
-	}
+    public void renderItem(ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource bufferSource, int lightmap, int overlay, int[] colors, List<BakedQuad> vanillaQuads, MeshView mesh, RenderType layer, ItemStackRenderState.FoilType glint, @Nullable ItemRenderTypeGetter renderTypeGetter, boolean ignoreQuadGlint) {
+        this.transformMode = displayContext;
+        matPosition = poseStack.last().pose();
+        this.poseStack = poseStack;
 
-	private void bufferQuads(List<BakedQuad> vanillaQuads, MeshView mesh) {
-		QuadEmitter emitter = this.emitter;
-		emitter.clear();
+        trustedNormals = this.poseStack.last().trustedNormals;
+        matNormal = this.poseStack.last().normal();
+        this.bufferSource = bufferSource;
+        this.lightmap = lightmap;
+        this.overlay = overlay;
+        this.colors = colors;
+        this.ignoreQuadGlint = ignoreQuadGlint;
+        this.renderTypeGetter = renderTypeGetter;
 
-		//noinspection ForLoopReplaceableByForEach
-		for (int i = 0; i < vanillaQuads.size(); i++) {
-			final BakedQuad q = vanillaQuads.get(i);
-			emitter.fromBakedQuad(q);
-			emitter.emit();
-		}
+        defaultLayer = layer;
+        defaultGlint = glint;
 
-		mesh.outputTo(emitter);
-	}
+        bufferQuads(vanillaQuads, mesh);
 
-	private void bufferQuad(MutableQuadViewWrapper quad) {
-		final RenderType renderType = quad.itemRenderType();
+        this.poseStack = null;
+        this.bufferSource = null;
+        this.colors = null;
+        this.renderTypeGetter = null;
+
+        this.specialGlintEntry = null;
+        Arrays.fill(vertexConsumerCache, null);
+    }
 
 
-		if (renderType.hasBlending() != translucent) {
-			return;
-		}
+    private void bufferQuads(List<BakedQuad> vanillaQuads, MeshView mesh) {
+        QuadEmitter emitter = ((ExtendedMutableQuadViewImpl) getForEmitting()).getWrapper();
 
-		shadeQuad(quad, quad.emissive());
-		tintQuad(quad);
+        final int vanillaQuadCount = vanillaQuads.size();
 
-		final FabricSubmitNodeCollection.ExtendedItemSubmit submit = this.submit;
-		final ItemStackRenderState.FoilType foilType = quad.foilType() == null ? submit.foilType() : quad.foilType();
+        for (int j = 0; j < vanillaQuadCount; j++) {
+            final BakedQuad q = vanillaQuads.get(j);
+            emitter.fromBakedQuad(q);
+            emitter.emit();
+        }
 
-		if (foilType != ItemStackRenderState.FoilType.NONE) {
-			final PoseStack.Pose foilDecalPose;
+        mesh.outputTo(emitter);
+    }
 
-			if (foilType == ItemStackRenderState.FoilType.SPECIAL) {
-				if (this.foilDecalPose == null) {
-					this.foilDecalPose = ItemFeatureRendererAccessor.fabric_computeFoilDecalPose(submit.displayContext(), submit.pose());
-				}
+    private void renderQuad(MutableQuadViewImpl quad) {
+        final boolean emissive = quad.emissive();
+        final VertexConsumer vertexConsumer = getVertexConsumer(quad.getQuadAtlas(), quad.getRenderType(), quad.glint());
 
-				foilDecalPose = this.foilDecalPose;
-			} else {
-				foilDecalPose = null;
-			}
+        tintQuad(quad);
+        shadeQuad(quad, emissive);
+        bufferQuad(quad, vertexConsumer, quad.getQuadAtlas() == SodiumQuadAtlas.ITEM);
+    }
 
-			final VertexConsumer foilBuffer = ItemFeatureRendererAccessor.fabric_getFoilBuffer(bufferSource, renderType, foilDecalPose);
-			quad.buffer(submit.overlayCoords(), submit.pose(), foilBuffer);
-		}
+    private void tintQuad(MutableQuadViewImpl quad) {
+        final int tintIndex = quad.getTintIndex();
 
-		if (submit.outlineColor() != 0) {
-			quad.buffer(submit.overlayCoords(), submit.pose(), outlineBufferSource.getBuffer(renderType));
-		}
+        if (tintIndex != -1 && tintIndex < colors.length) {
+            final int color = colors[tintIndex];
 
-		quad.buffer(submit.overlayCoords(), submit.pose(), bufferSource.getBuffer(renderType));
-	}
+            for (int i = 0; i < 4; i++) {
+                quad.setColor(i, ColorMixer.mulComponentWise(color, quad.baseColor(i)));
+            }
+        }
+    }
 
-	private void shadeQuad(MutableQuadViewWrapper quad, boolean emissive) {
-		if (emissive) {
-			quad.lightmap(LightCoordsUtil.FULL_BRIGHT, LightCoordsUtil.FULL_BRIGHT, LightCoordsUtil.FULL_BRIGHT, LightCoordsUtil.FULL_BRIGHT);
-		} else {
-			quad.minLightmap(submit.lightCoords());
-		}
-	}
+    private void shadeQuad(MutableQuadViewImpl quad, boolean emissive) {
+        if (emissive) {
+            for (int i = 0; i < 4; i++) {
+                quad.setLight(i, LightTexture.FULL_BRIGHT);
+            }
+        } else {
+            final int lightmap = this.lightmap;
 
-	private void tintQuad(MutableQuadViewWrapper quad) {
-		final int tintIndex = quad.tintIndex();
+            for (int i = 0; i < 4; i++) {
+                quad.setLight(i, ColorHelper.maxBrightness(quad.getLight(i), lightmap));
+            }
+        }
+    }
 
-		if (tintIndex >= 0 && tintIndex < submit.tintLayers().length) {
-			quad.multiplyColor(submit.tintLayers()[tintIndex]);
-		}
-	}
+    private void bufferQuad(MutableQuadViewImpl quad, VertexConsumer vertexConsumer, boolean wasItemAtlas) {
+        QuadEncoder.writeQuadVertices(quad, vertexConsumer, overlay, matPosition, trustedNormals, matNormal);
+        var sprite = quad.sprite(wasItemAtlas ? SpriteFinderCache.forItemAtlas() : SpriteFinderCache.forBlockAtlas());
+        if (sprite != null) {
+            SpriteUtil.INSTANCE.markSpriteActive(sprite);
+        }
+    }
+
+    /**
+     * Caches custom blend mode / vertex consumers and mimics the logic
+     * in {@code RenderLayers.getEntityBlockLayer}. Layers other than
+     * translucent are mapped to cutout.
+     */
+    private VertexConsumer getVertexConsumer(SodiumQuadAtlas quadAtlas, @Nullable ChunkSectionLayer quadRenderLayer, ItemStackRenderState.@Nullable FoilType quadGlint) {
+        RenderType layer;
+        ItemStackRenderState.FoilType glint;
+
+        if (renderTypeGetter != null) {
+            layer = renderTypeGetter.renderType(quadAtlas == SodiumQuadAtlas.BLOCK ? QuadAtlas.BLOCK : QuadAtlas.ITEM, quadRenderLayer);
+
+            if (layer == null) {
+                layer = defaultLayer;
+            }
+        } else {
+            layer = defaultLayer;
+        }
+
+        if (ignoreQuadGlint || quadGlint == null) {
+            glint = defaultGlint;
+        } else {
+            glint = quadGlint;
+        }
+
+        int cacheIndex;
+
+        if (layer == Sheets.translucentItemSheet()) {
+            cacheIndex = 0;
+        } else if (layer == Sheets.cutoutBlockSheet()) {
+            cacheIndex = GLINT_COUNT;
+        } else if (layer == Sheets.translucentBlockItemSheet()) {
+            cacheIndex = 2 * GLINT_COUNT;
+        } else {
+            return createVertexConsumer(layer, glint);
+        }
+
+        cacheIndex += glint.ordinal();
+        VertexConsumer vertexConsumer = vertexConsumerCache[cacheIndex];
+
+        if (vertexConsumer == null) {
+            vertexConsumer = createVertexConsumer(layer, glint);
+            vertexConsumerCache[cacheIndex] = vertexConsumer;
+        }
+
+        return vertexConsumer;
+    }
+
+    private VertexConsumer createVertexConsumer(RenderType type, ItemStackRenderState.FoilType glint) {
+        if (glint == ItemStackRenderState.FoilType.SPECIAL) {
+            if (specialGlintEntry == null) {
+                specialGlintEntry = poseStack.last().copy();
+
+                if (transformMode == ItemDisplayContext.GUI) {
+                    MatrixUtil.mulComponentWise(specialGlintEntry.pose(), 0.5F);
+                } else if (transformMode.firstPerson()) {
+                    MatrixUtil.mulComponentWise(specialGlintEntry.pose(), 0.75F);
+                }
+            }
+
+            return ItemRendererAccessor.sodium$getSpecialFoilBuffer(bufferSource, type, specialGlintEntry);
+        }
+
+        return ItemRenderer.getFoilBuffer(bufferSource, type, true, glint != ItemStackRenderState.FoilType.NONE);
+    }
+
+    /** used to accept a method reference from the ItemRenderer. */
+    @FunctionalInterface
+    public interface VanillaModelBufferer {
+        void accept(BlockStateModel model, int[] colirs, int color, int overlay, PoseStack matrixStack, VertexConsumer buffer);
+    }
 }

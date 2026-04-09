@@ -32,7 +32,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.client.renderer.state.LevelRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.BlockDestructionProgress;
@@ -65,11 +65,7 @@ public class SodiumWorldRenderer {
     private Vector3d lastCameraPos;
     private double lastCameraPitch, lastCameraYaw;
     private FogParameters lastFogParameters = FogParameters.NONE;
-
-    /**
-     * This matrix is not the same one used for rendering! It does not correspond to anything specific, other than guaranteeing it'll change with rotation.
-     */
-    private Matrix4f cullMatrix;
+    private Matrix4f lastProjectionMatrix;
 
     private boolean useEntityCulling;
 
@@ -171,7 +167,7 @@ public class SodiumWorldRenderer {
                              FogParameters fogParameters,
                              boolean spectator,
                              boolean updateChunksImmediately,
-                             Matrix4f cullMatrix) {
+                             ChunkRenderMatrices matrices) {
         NativeBuffer.reclaim(false);
 
         this.processChunkEvents();
@@ -199,15 +195,15 @@ public class SodiumWorldRenderer {
         if (this.lastCameraPos == null) {
             this.lastCameraPos = pos;
         }
-        if (this.cullMatrix == null) {
-            this.cullMatrix = new Matrix4f(cullMatrix);
+        if (this.lastProjectionMatrix == null) {
+            this.lastProjectionMatrix = new Matrix4f(matrices.projection());
         }
         boolean cameraLocationChanged = !pos.equals(this.lastCameraPos);
         boolean fogDistanceChanged = fogParameters.renderEnd() != this.lastFogParameters.renderEnd();
         boolean cameraAngleChanged = pitch != this.lastCameraPitch || yaw != this.lastCameraYaw;
-        boolean cameraProjectionChanged = !cullMatrix.equals(this.cullMatrix, 0.0001f);
+        boolean cameraProjectionChanged = !matrices.projection().equals(this.lastProjectionMatrix, 0.0001f);
 
-        this.cullMatrix.set(cullMatrix);
+        this.lastProjectionMatrix.set(matrices.projection());
 
         this.lastCameraPitch = pitch;
         this.lastCameraYaw = yaw;
@@ -464,13 +460,6 @@ public class SodiumWorldRenderer {
         int maxY = SectionPos.posToSectionCoord(y2 + 0.5D);
         int maxZ = SectionPos.posToSectionCoord(z2 + 0.5D);
 
-        minY = Math.max(minY, this.level.getMinSectionY());
-        maxY = Math.min(maxY, this.level.getMaxSectionY());
-
-        if (minX == maxX && minY == maxY && minZ == maxZ) {
-            return this.renderSectionManager.isSectionVisible(minX, minY, minZ);
-        }
-
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
                 for (int y = minY; y <= maxY; y++) {
@@ -506,17 +495,6 @@ public class SodiumWorldRenderer {
      * Schedules chunk rebuilds for all chunks in the specified chunk region.
      */
     public void scheduleRebuildForChunks(int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean important) {
-        if (this.level == null || this.renderSectionManager == null) {
-            return;
-        }
-
-        minY = Math.max(minY, this.level.getMinSectionY());
-        maxY = Math.min(maxY, this.level.getMaxSectionY());
-
-        if (minY > maxY) {
-            return;
-        }
-
         for (int chunkX = minX; chunkX <= maxX; chunkX++) {
             for (int chunkY = minY; chunkY <= maxY; chunkY++) {
                 for (int chunkZ = minZ; chunkZ <= maxZ; chunkZ++) {

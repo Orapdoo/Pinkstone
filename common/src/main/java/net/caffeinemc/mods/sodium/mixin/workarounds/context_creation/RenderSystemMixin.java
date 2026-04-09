@@ -7,13 +7,11 @@ import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.platform.WindowEventHandler;
 import com.mojang.blaze3d.shaders.ShaderSource;
 import com.mojang.blaze3d.shaders.ShaderType;
-import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.caffeinemc.mods.sodium.client.compatibility.checks.ModuleScanner;
 import net.caffeinemc.mods.sodium.client.compatibility.checks.PostLaunchChecks;
 import net.caffeinemc.mods.sodium.client.compatibility.environment.GlContextInfo;
 import net.caffeinemc.mods.sodium.client.platform.NativeWindowHandle;
-import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFWNativeWin32;
@@ -38,9 +36,9 @@ public class RenderSystemMixin {
 
     @Unique
     private static long wglPrevContext;
-
+    
     @Inject(method = "initRenderer", at = @At(value = "RETURN"))
-    private static void postContextReady(GpuDevice device, CallbackInfo ci) {
+    private static void postContextReady(long window, int i, boolean bl, ShaderSource shaderSource, boolean bl2, CallbackInfo ci) {
         GlContextInfo context = GlContextInfo.create();
         LOGGER.info("OpenGL Vendor: {}", context.vendor());
         LOGGER.info("OpenGL Renderer: {}", context.renderer());
@@ -48,30 +46,25 @@ public class RenderSystemMixin {
 
         // Capture the current WGL context so that we can detect it being replaced later.
         if (Util.getPlatform() == Util.OS.WINDOWS) {
-            wglPrevContext = WGL.wglGetCurrentContext(null);
+            wglPrevContext = WGL.wglGetCurrentContext();
         } else {
             wglPrevContext = MemoryUtil.NULL;
         }
+
+        NativeWindowHandle handle = () -> GLFWNativeWin32.glfwGetWin32Window(window);
+
+        PostLaunchChecks.onContextInitialized(handle, context);
+        ModuleScanner.checkModules(handle);
     }
 
     @Inject(method = "flipFrame", at = @At(value = "RETURN"))
-    private static void preSwapBuffers(TracyFrameCapture tracyFrameCapture, CallbackInfo ci) {
-        if (Util.getPlatform() != Util.OS.WINDOWS) return;
-
+    private static void preSwapBuffers(Window window, TracyFrameCapture tracyFrameCapture, CallbackInfo ci) {
         if (wglPrevContext == MemoryUtil.NULL) {
-            // There is no prior recorded context. Record it.
-            GlContextInfo context = GlContextInfo.create();
-
-            NativeWindowHandle handle = () -> GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().getWindow().handle());
-
-            PostLaunchChecks.onContextInitialized(handle, context);
-            ModuleScanner.checkModules(handle);
-            wglPrevContext = WGL.wglGetCurrentContext(null);
-
+            // There is no prior recorded context.
             return;
         }
 
-        var context = WGL.wglGetCurrentContext(null);
+        var context = WGL.wglGetCurrentContext();
 
         if (wglPrevContext == context) {
             // The context has not changed.
@@ -83,7 +76,7 @@ public class RenderSystemMixin {
 
         // Likely, this indicates a module was injected into the current process. We should check that
         // nothing problematic was just installed.
-        ModuleScanner.checkModules(() -> GLFWNativeWin32.glfwGetWin32Window(Minecraft.getInstance().getWindow().handle()));
+        ModuleScanner.checkModules(() -> GLFWNativeWin32.glfwGetWin32Window(window.handle()));
 
         // If we didn't find anything problematic (which would have thrown an exception), then let's just record
         // the new context pointer and carry on.

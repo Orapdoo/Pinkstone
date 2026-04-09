@@ -23,13 +23,13 @@ import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexE
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.caffeinemc.mods.sodium.client.util.DirectionUtil;
 import net.caffeinemc.mods.sodium.client.world.LevelSlice;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.renderer.block.FluidModel;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
@@ -381,7 +381,7 @@ public class DefaultFluidRenderer {
         return Float.NaN;
     }
 
-    public void render(LevelSlice level, BlockState blockState, FluidState fluidState, BlockPos blockPos, BlockPos offset, TranslucentGeometryCollector collector, ChunkModelBuilder meshBuilder, Material material, ColorProvider<FluidState> colorProvider, FluidModel sprites) {
+    public void render(LevelSlice level, BlockState blockState, FluidState fluidState, BlockPos blockPos, BlockPos offset, TranslucentGeometryCollector collector, ChunkModelBuilder meshBuilder, Material material, ColorProvider<FluidState> colorProvider, TextureAtlasSprite[] sprites) {
         Fluid fluid = fluidState.getType();
 
         boolean upVisible = this.isFullBlockFluidVisible(level, blockPos, Direction.UP, blockState, fluidState);
@@ -441,7 +441,7 @@ public class DefaultFluidRenderer {
 
         final ModelQuadViewMutable quad = this.quad;
 
-        LightMode lightMode = isWater && level.useAmbientOcclusion() ? LightMode.SMOOTH : LightMode.FLAT;
+        LightMode lightMode = isWater && Minecraft.useAmbientOcclusion() ? LightMode.SMOOTH : LightMode.FLAT;
         LightPipeline lighter = this.lighters.getLighter(lightMode);
 
         quad.setFlags(0);
@@ -475,7 +475,7 @@ public class DefaultFluidRenderer {
             float v1, v2, v3, v4;
 
             if (velocity.x == 0.0D && velocity.z == 0.0D) {
-                sprite = sprites.stillMaterial().sprite();
+                sprite = sprites[0];
                 u1 = sprite.getU(0.0f);
                 v1 = sprite.getV(0.0f);
                 u2 = u1;
@@ -485,7 +485,7 @@ public class DefaultFluidRenderer {
                 u4 = u3;
                 v4 = v1;
             } else {
-                sprite = sprites.flowingMaterial().sprite();
+                sprite = sprites[1];
                 float dir = (float) Mth.atan2(velocity.z, velocity.x) - (1.5707964f);
                 float sin = Mth.sin(dir) * 0.25F;
                 float cos = Mth.cos(dir) * 0.25F;
@@ -535,7 +535,7 @@ public class DefaultFluidRenderer {
         }
 
         if (downVisible) {
-            TextureAtlasSprite sprite = sprites.stillMaterial().sprite();
+            TextureAtlasSprite sprite = sprites[0];
 
             float minU = sprite.getU0();
             float maxU = sprite.getU1();
@@ -553,17 +553,9 @@ public class DefaultFluidRenderer {
 
             // render inwards facing down fluid face using the same heuristic as the side faces.
             // this fixes a number of inconsistencies between the top and side faces
-            var below = this.secondScratchPos.setWithOffset(blockPos, Direction.DOWN);
-            var blockStateBelow = level.getBlockState(below);
+            var blockStateBelow = level.getBlockState(this.scratchPos.setWithOffset(blockPos, Direction.DOWN));
             if (!PlatformBlockAccess.getInstance().shouldShowFluidOverlay(blockStateBelow, level, this.scratchPos, fluidState)) {
-                // additionally check the fluid state of the blocks below to prevent rendering the down face if there's no side fluid faces
-                var northIsFluid = level.getFluidState(this.scratchPos.setWithOffset(below, Direction.NORTH)).getType().isSame(fluid);
-                var southIsFluid = level.getFluidState(this.scratchPos.setWithOffset(below, Direction.SOUTH)).getType().isSame(fluid);
-                var westIsFluid = level.getFluidState(this.scratchPos.setWithOffset(below, Direction.WEST)).getType().isSame(fluid);
-                var eastIsFluid = level.getFluidState(this.scratchPos.setWithOffset(below, Direction.EAST)).getType().isSame(fluid);
-                if (northIsFluid || southIsFluid || westIsFluid || eastIsFluid) {
-                    this.writeQuad(meshBuilder, collector, material, offset, quad, ModelQuadFacing.POS_Y, true);
-                }
+                this.writeQuad(meshBuilder, collector, material, offset, quad, ModelQuadFacing.POS_Y, true);
             }
         }
 
@@ -631,15 +623,15 @@ public class DefaultFluidRenderer {
             this.scratchPos.setWithOffset(blockPos, dir);
 
             if (this.isFluidSideExposed(level, blockState, this.scratchPos, dir, sideFluidHeight)) {
-                TextureAtlasSprite sprite = sprites.flowingMaterial().sprite();
+                TextureAtlasSprite sprite = sprites[1];
 
                 boolean isOverlay = false;
 
-                if (sprites.overlayMaterial() != null) {
+                if (sprites.length > 2 && sprites[2] != null) {
                     BlockState adjBlock = level.getBlockState(this.scratchPos);
 
                     if (PlatformBlockAccess.getInstance().shouldShowFluidOverlay(adjBlock, level, this.scratchPos, fluidState)) {
-                        sprite = sprites.overlayMaterial().sprite();
+                        sprite = sprites[2];
                         isOverlay = true;
                     }
                 }

@@ -16,14 +16,16 @@
 
 package net.caffeinemc.mods.sodium.client.render.model;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.caffeinemc.mods.sodium.api.util.NormI8;
 import net.caffeinemc.mods.sodium.client.model.quad.BakedQuadView;
+import net.caffeinemc.mods.sodium.client.render.helper.ColorHelper;
 import net.caffeinemc.mods.sodium.client.render.helper.ListStorage;
 import net.caffeinemc.mods.sodium.client.render.helper.TextureHelper;
 import net.caffeinemc.mods.sodium.client.render.texture.SodiumSpriteFinder;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
@@ -51,10 +53,10 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
     @Nullable
     private TextureAtlasSprite cachedSprite;
 
-    private List<BlockStateModelPart> cachedList;
+    private List<BlockModelPart> cachedList;
 
     @Override
-    public List<BlockStateModelPart> clearAndGet() {
+    public List<BlockModelPart> clearAndGet() {
         if (cachedList == null) {
             cachedList = new ArrayList<>();
             return cachedList;
@@ -83,8 +85,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         quad.setColor(2, -1);
         quad.setColor(3, -1);
         quad.setCullFace(null);
-        quad.setRenderType(ChunkSectionLayer.CUTOUT);
-        quad.setItemRenderType(ItemRenderType.DEFAULT.renderType);
+        quad.setRenderType(null);
         quad.setDiffuseShade(true);
         quad.setQuadAtlas(SodiumQuadAtlas.BLOCK);
         quad.setAmbientOcclusion(TriState.DEFAULT);
@@ -105,8 +106,7 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         TextureAtlasSprite sprite = cachedSprite;
 
         if (sprite == null) {
-            sprite = finder.find(this);
-            cachedSprite = sprite;
+            cachedSprite = sprite = finder.find(this);
         }
 
         return sprite;
@@ -285,13 +285,11 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
     public final MutableQuadViewImpl fromBakedQuad(BakedQuad quad) {
         fromVanillaInternal(((BakedQuadView) (Object) quad));
         setNominalFace(quad.direction());
-        setDiffuseShade(quad.materialInfo().shade());
-        setTintIndex(quad.materialInfo().tintIndex());
+        setDiffuseShade(quad.shade());
+        setTintIndex(quad.tintIndex());
         setAmbientOcclusion(((BakedQuadView) (Object) quad).hasAO() ? TriState.DEFAULT : TriState.FALSE); // TODO: TRUE, or DEFAULT?
-        setItemRenderType(quad.materialInfo().itemRenderType());
-        setRenderType(quad.materialInfo().layer());
-        setAnimated(quad.materialInfo().sprite().contents().isAnimated());
-        setEmissive(quad.materialInfo().lightEmission() == 15);
+
+        setEmissive(quad.lightEmission() == 15);
 
         // Copy geometry cached inside the quad
         BakedQuadView bakedView = (BakedQuadView) (Object) quad;
@@ -302,14 +300,14 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
         data[baseIndex + HEADER_BITS] = EncodingFormat.geometryFlags(headerBits, bakedView.getFlags());
         isGeometryInvalid = false;
 
-        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.materialInfo().sprite().atlasLocation());
+        SodiumQuadAtlas atlas = SodiumQuadAtlas.of(quad.sprite().atlasLocation());
 
         if (atlas == null) {
             atlas = SodiumQuadAtlas.BLOCK;
         }
 
         setQuadAtlas(atlas);
-        cachedSprite(quad.materialInfo().sprite());
+        cachedSprite(quad.sprite());
         return this;
     }
 
@@ -318,27 +316,4 @@ public abstract class MutableQuadViewImpl extends QuadViewImpl implements ListSt
      * Geometry is not guaranteed to be valid when called, but can be computed by calling {@link #computeGeometry()}.
      */
     public abstract void emitDirectly();
-
-    public MutableQuadViewImpl translate(float x, float y, float z) {
-        for (int i = 0; i < 4; i++) {
-            setPos(i, getX(i) + x,  getY(i) + y, getZ(i) + z);
-        }
-
-        return this;
-    }
-
-    public MutableQuadViewImpl setItemRenderType(RenderType renderType) {
-        ItemRenderType enumValue = ItemRenderType.RENDER_TYPE_2_ENUM.get(renderType);
-
-        if (enumValue != null) {
-            data[baseIndex + HEADER_BITS] = EncodingFormat.itemRenderType(data[baseIndex + HEADER_BITS], enumValue);
-        }
-
-        return this;
-    }
-
-    public MutableQuadViewImpl setAnimated(boolean b) {
-        data[baseIndex + HEADER_BITS] = EncodingFormat.animated(data[baseIndex + HEADER_BITS], b);
-        return this;
-    }
 }

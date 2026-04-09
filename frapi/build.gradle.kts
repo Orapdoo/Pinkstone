@@ -2,7 +2,7 @@ plugins {
     id("multiloader-base")
     id("java-library")
 
-    id("net.fabricmc.fabric-loom") version ("1.15.4")
+    id("fabric-loom") version ("1.13.4")
 }
 
 base {
@@ -44,19 +44,27 @@ loom {
 
 dependencies {
     minecraft("com.mojang:minecraft:${BuildConfig.MINECRAFT_VERSION}")
+    mappings(loom.layered {
+        officialMojangMappings()
 
-    implementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+        if (BuildConfig.PARCHMENT_VERSION != null) {
+            parchment("org.parchmentmc.data:parchment-${BuildConfig.MINECRAFT_VERSION}:${BuildConfig.PARCHMENT_VERSION}@zip")
+        }
+    })
 
-    fun addEmbeddedDependency(dependency: String) {
-        implementation(dependency)
-        include(dependency)
+    modImplementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
+
+    fun addEmbeddedFabricModule(name: String) {
+        val module = fabricApi.module(name, BuildConfig.FABRIC_API_VERSION)
+        modImplementation(module)
+        include(module)
     }
 
     // Fabric API modules
-    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-api-base:1.0.5+4ebb5c083e")
-    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-block-view-api-v2:1.0.39+4ebb5c083e")
-    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-rendering-v1:16.2.7+f4ffd2e53e")
-    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-renderer-api-v1:8.0.1+9c919dacc9")
+    addEmbeddedFabricModule("fabric-api-base")
+    addEmbeddedFabricModule("fabric-block-view-api-v2")
+    addEmbeddedFabricModule("fabric-rendering-v1")
+    addEmbeddedFabricModule("fabric-renderer-api-v1")
 }
 
 fun exportSourceSetJava(name: String, sourceSet: SourceSet) {
@@ -96,3 +104,4 @@ fun exportSourceSet(name: String, sourceSet: SourceSet) {
 
 exportSourceSet("frapiMain", sourceSets["main"])
 tasks.jar { enabled = false }
+tasks.remapJar { enabled = false }

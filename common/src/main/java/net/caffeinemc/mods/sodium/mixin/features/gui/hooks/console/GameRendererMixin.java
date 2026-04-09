@@ -5,11 +5,10 @@ import com.llamalad7.mixinextras.sugar.Local;
 import net.caffeinemc.mods.sodium.client.gui.console.ConsoleHooks;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.render.state.GuiRenderState;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.RenderBuffers;
-import net.minecraft.client.renderer.state.GameRenderState;
-import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import org.lwjgl.glfw.GLFW;
@@ -33,8 +32,7 @@ public class GameRendererMixin {
 
     @Shadow
     @Final
-    private GameRenderState gameRenderState;
-
+    private GuiRenderState guiRenderState;
     @Unique
     private static boolean HAS_RENDERED_OVERLAY_ONCE = false;
 
@@ -51,7 +49,7 @@ public class GameRendererMixin {
         Profiler.get().push("sodium_console_overlay");
         int mouseX = (int)this.minecraft.mouseHandler.getScaledXPos(this.minecraft.getWindow());
         int mouseY = (int)this.minecraft.mouseHandler.getScaledYPos(this.minecraft.getWindow());
-        GuiGraphicsExtractor drawContext = new GuiGraphicsExtractor(this.minecraft, this.gameRenderState.guiRenderState, mouseX, mouseY);
+        GuiGraphics drawContext = new GuiGraphics(this.minecraft, this.guiRenderState, mouseX, mouseY);
 
         ConsoleHooks.render(drawContext, GLFW.glfwGetTime());
 
