@@ -63,26 +63,25 @@ dependencies {
 
     implementation("net.fabricmc:fabric-loader:${BuildConfig.FABRIC_LOADER_VERSION}")
 
-    fun addEmbeddedFabricModule(name: String) {
-        val module = fabricApi.module(name, BuildConfig.FABRIC_API_VERSION)
-        implementation(module)
-        include(module)
+    fun addEmbeddedDependency(dependency: String) {
+        implementation(dependency)
+        include(dependency)
     }
 
     // Fabric API modules
-    addEmbeddedFabricModule("fabric-api-base")
-    addEmbeddedFabricModule("fabric-block-getter-api-v2")
-    addEmbeddedFabricModule("fabric-rendering-v1")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-api-base:1.0.5+4ebb5c083e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-block-view-api-v2:1.0.39+4ebb5c083e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-rendering-v1:16.2.7+f4ffd2e53e")
 
     if (BuildConfig.SUPPORT_FRAPI) {
-        addEmbeddedFabricModule("fabric-renderer-api-v1")
+        addEmbeddedDependency("net.fabricmc.fabric-api:fabric-renderer-api-v1:8.0.1+9c919dacc9")
     }
 
-    addEmbeddedFabricModule("fabric-lifecycle-events-v1")
-    addEmbeddedFabricModule("fabric-rendering-fluids-v1")
-    addEmbeddedFabricModule("fabric-resource-loader-v0")
-    addEmbeddedFabricModule("fabric-resource-loader-v1")
-    addEmbeddedFabricModule("fabric-transitive-access-wideners-v1")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-lifecycle-events-v1:2.6.15+81748cc8f1")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-rendering-fluids-v1:3.1.43+4ebb5c083e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-resource-loader-v0:3.3.4+4fc5413f3e")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-resource-loader-v1:1.0.10+81748cc8f1")
+    addEmbeddedDependency("net.fabricmc.fabric-api:fabric-transitive-access-wideners-v1:7.0.7+81748cc8f1")
 }
 
 loom {
