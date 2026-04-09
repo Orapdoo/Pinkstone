@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pinkstone logo">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2b1236"/>
+      <stop offset="100%" stop-color="#5d1f4c"/>
+    </linearGradient>
+    <linearGradient id="gem" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffcfe6"/>
+      <stop offset="100%" stop-color="#d85492"/>
+    </linearGradient>
+  </defs>
+
+  <circle cx="256" cy="256" r="232" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="232" fill="none" stroke="#f6c7df" stroke-width="10"/>
+
+  <path d="M256 76 402 168 368 366 256 452 144 366 110 168Z" fill="url(#gem)" stroke="#fde9f6" stroke-width="8"/>
+  <path d="M256 76 316 198 196 198Z" fill="#ffffff" opacity="0.35"/>
+  <path d="M196 198 316 198 256 452Z" fill="#e874ab" opacity="0.45"/>
+
+  <text x="256" y="342" text-anchor="middle" font-family="Segoe UI Black, Arial Black, sans-serif" font-size="230" fill="#fff7fc" stroke="#7c2a58" stroke-width="4">P</text>
+</svg>
