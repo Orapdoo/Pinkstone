@@ -24,6 +24,10 @@ jobs:
         id: ref
       - name: Checkout sources
         uses: actions/checkout@v6
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
