@@ -60,7 +60,7 @@ Build outputs are placed in `build/mods`.
 
 ### Build Requirements
 
-- OpenJDK 25
+- OpenJDK 21
 - Gradle Wrapper (included)
 
 ## Attribution
