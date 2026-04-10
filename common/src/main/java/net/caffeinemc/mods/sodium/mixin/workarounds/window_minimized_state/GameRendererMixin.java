@@ -25,7 +25,7 @@ public class GameRendererMixin {
     @Unique
     private final boolean sodium$redirectWindowMinimizedState = Workarounds.isWorkaroundEnabled(Workarounds.Reference.INTEL_FRAMEBUFFER_BLIT_CRASH_WHEN_UNFOCUSED);
 
-    @Redirect(method = "extractWindow", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/Window;isMinimized()Z"))
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/Window;isMinimized()Z"), require = 0)
     private boolean redirectWindowMinimized(Window window) {
         if (!sodium$redirectWindowMinimizedState) {
             return window.isMinimized();
