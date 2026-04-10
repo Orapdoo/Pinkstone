@@ -55,7 +55,7 @@ public class BakedGlyphMixin {
      * @author JellySquid
      */
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void drawFast(boolean italic, float x, float y, float z, Matrix4fc matrix, VertexConsumer vertexConsumer, int c, boolean bl2, int light, CallbackInfo ci) {
+    private void drawFast(boolean italic, float x, float y, float z, Matrix4f matrix, VertexConsumer vertexConsumer, int c, boolean bl2, int light, CallbackInfo ci) {
         var writer = VertexConsumerUtils.convertOrLog(vertexConsumer);
 
         if (writer == null) {
@@ -99,7 +99,7 @@ public class BakedGlyphMixin {
      * @author JellySquid
      */
     @Inject(method = "buildEffect", at = @At("HEAD"), cancellable = true)
-    private void drawEffectFast(BakedSheetGlyph.EffectInstance effect, float offset, float depthOffset, int c, VertexConsumer vertexConsumer, int light, Matrix4fc matrix, CallbackInfo ci) {
+    private void drawEffectFast(BakedSheetGlyph.EffectInstance effect, float offset, float depthOffset, int c, VertexConsumer vertexConsumer, int light, Matrix4f matrix, CallbackInfo ci) {
         var writer = VertexConsumerUtils.convertOrLog(vertexConsumer);
 
         if (writer == null) {
