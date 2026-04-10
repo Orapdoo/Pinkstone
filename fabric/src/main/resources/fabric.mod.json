@@ -43,7 +43,10 @@
     "issues" : "https://github.com/Orapdoo/Pinkstone/issues"
   },
   "license" : "Polyform-Shield-1.0.0",
-  "icon" : "pinkstone-icon.png",
+  "icon" : {
+    "64" : "pinkstone-icon-64.png",
+    "128" : "pinkstone-icon.png"
+  },
   "environment" : "client",
   "entrypoints" : {
     "client" : [
