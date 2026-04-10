@@ -6,11 +6,11 @@ import net.caffeinemc.mods.sodium.client.render.model.AmbientOcclusionMode;
 import net.caffeinemc.mods.sodium.client.services.PlatformBlockAccess;
 import net.caffeinemc.mods.sodium.client.util.DirectionUtil;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
+import net.minecraft.client.renderer.block.model.BlockModelPart;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -66,11 +66,7 @@ public class NeoForgeBlockAccess implements PlatformBlockAccess {
     }
 
     private float getShade(BlockAndTintGetter blockView, Direction direction, boolean hasShade) {
-        if (hasShade) {
-            return blockView.cardinalLighting().byFace(direction);
-        } else {
-            return blockView.cardinalLighting().up();
-        }
+        return blockView.getShade(direction, hasShade);
     }
 
     @Override
@@ -89,7 +85,7 @@ public class NeoForgeBlockAccess implements PlatformBlockAccess {
     }
 
     @Override
-    public AmbientOcclusionMode usesAmbientOcclusion(BlockStateModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos) {
+    public AmbientOcclusionMode usesAmbientOcclusion(BlockModelPart model, BlockState state, ChunkSectionLayer renderType, BlockAndTintGetter level, BlockPos pos) {
         return switch (model.ambientOcclusion()) {
             case TRUE -> AmbientOcclusionMode.ENABLED;
             case FALSE -> AmbientOcclusionMode.DISABLED;

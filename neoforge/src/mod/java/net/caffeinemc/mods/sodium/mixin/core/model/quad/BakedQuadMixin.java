@@ -3,16 +3,14 @@ package net.caffeinemc.mods.sodium.mixin.core.model.quad;
 import net.caffeinemc.mods.sodium.client.model.quad.BakedQuadView;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFacing;
 import net.caffeinemc.mods.sodium.client.model.quad.properties.ModelQuadFlags;
-import net.caffeinemc.mods.sodium.client.util.ModelQuadUtil;
 import net.minecraft.client.model.geom.builders.UVPair;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
-import net.minecraft.util.LightCoordsUtil;
 import net.neoforged.neoforge.client.model.quad.BakedColors;
 import net.neoforged.neoforge.client.model.quad.BakedNormals;
 import org.joml.Vector3fc;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -30,17 +28,29 @@ public abstract class BakedQuadMixin implements BakedQuadView {
     public abstract long packedUV(int i);
 
     @Shadow
-    @Final
-    private Direction direction;
+    public abstract int tintIndex();
+
     @Shadow
-    @Final
-    private BakedNormals bakedNormals;
+    public abstract Direction direction();
+
     @Shadow
-    @Final
-    private BakedColors bakedColors;
+    public abstract TextureAtlasSprite sprite();
+
     @Shadow
-    @Final
-    private BakedQuad.MaterialInfo materialInfo;
+    public abstract boolean shade();
+
+    @Shadow
+    public abstract int lightEmission();
+
+    @Shadow
+    public abstract BakedNormals bakedNormals();
+
+    @Shadow
+    public abstract BakedColors bakedColors();
+
+    @Shadow
+    public abstract boolean hasAmbientOcclusion();
+
     @Unique
     private int flags;
 
@@ -50,12 +60,12 @@ public abstract class BakedQuadMixin implements BakedQuadView {
     @Unique
     private ModelQuadFacing normalFace = null;
 
-    @Inject(method = "<init>(Lorg/joml/Vector3fc;Lorg/joml/Vector3fc;Lorg/joml/Vector3fc;Lorg/joml/Vector3fc;JJJJLnet/minecraft/core/Direction;Lnet/minecraft/client/resources/model/geometry/BakedQuad$MaterialInfo;Lnet/neoforged/neoforge/client/model/quad/BakedNormals;Lnet/neoforged/neoforge/client/model/quad/BakedColors;)V", at = @At("RETURN"))
-    private void init(Vector3fc position0, Vector3fc position1, Vector3fc position2, Vector3fc position3, long packedUV0, long packedUV1, long packedUV2, long packedUV3, Direction direction, BakedQuad.MaterialInfo materialInfo, BakedNormals bakedNormals, BakedColors bakedColors, CallbackInfo ci) {
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void init(CallbackInfo ci) {
         this.normal = this.calculateNormal();
         this.normalFace = ModelQuadFacing.fromPackedNormal(this.normal);
 
-        this.flags = ModelQuadFlags.getQuadFlags(this, direction);
+        this.flags = ModelQuadFlags.getQuadFlags(this, this.direction());
     }
 
     @Override
@@ -75,12 +85,14 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public int getColor(int idx) {
-        return this.bakedColors.color(idx); // default is -1 for now
+        var bakedColors = this.bakedColors();
+        return bakedColors == BakedColors.UNSPECIFIED ? 0xFFFFFFFF : bakedColors.color(idx);
     }
 
     @Override
     public int getVertexNormal(int idx) {
-        return this.bakedNormals == BakedNormals.UNSPECIFIED ? -1 : this.bakedNormals.normal(idx);//this.vertices[ModelQuadUtil.vertexOffset(idx) + ModelQuadUtil.NORMAL_INDEX];
+        var bakedNormals = this.bakedNormals();
+        return bakedNormals == BakedNormals.UNSPECIFIED ? -1 : bakedNormals.normal(idx);
     }
 
     @Override
@@ -90,7 +102,7 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public TextureAtlasSprite getSprite() {
-        return this.materialInfo.sprite();
+        return this.sprite();
     }
 
     @Override
@@ -110,7 +122,7 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public int getTintIndex() {
-        return this.materialInfo.tintIndex();
+        return this.tintIndex();
     }
 
     @Override
@@ -125,21 +137,21 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public Direction getLightFace() {
-        return this.direction;
+        return this.direction();
     }
 
     @Override
     public int getMaxLightQuad(int idx) {
-        return LightCoordsUtil.lightCoordsWithEmission(getLight(idx), this.materialInfo.lightEmission());
+        return LightTexture.lightCoordsWithEmission(getLight(idx), this.lightEmission());
     }
 
     @Override
     public boolean hasShade() {
-        return this.materialInfo.shade();
+        return this.shade();
     }
 
     @Override
     public boolean hasAO() {
-        return this.materialInfo.ambientOcclusion();
+        return this.hasAmbientOcclusion();
     }
 }
