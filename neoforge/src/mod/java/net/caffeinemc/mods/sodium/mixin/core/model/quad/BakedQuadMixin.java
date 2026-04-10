@@ -85,8 +85,7 @@ public abstract class BakedQuadMixin implements BakedQuadView {
 
     @Override
     public int getColor(int idx) {
-        var bakedColors = this.bakedColors();
-        return bakedColors == BakedColors.UNSPECIFIED ? 0xFFFFFFFF : bakedColors.color(idx);
+        return this.bakedColors().color(idx);
     }
 
     @Override
