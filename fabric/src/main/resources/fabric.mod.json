@@ -6,10 +6,9 @@
   "description" : "Pinkstone is a high-performance rendering engine for Minecraft based on Sodium, focused on smoother frame pacing and reduced stutter",
   "authors" : [
     {
-      "name" : "JellySquid (jellysquid3)",
+      "name" : "Orapdoo (Falthera)",
       "contact" : {
-        "email" : "jellysquid@pm.me",
-        "homepage" : "https://jellysquid.me"
+        "homepage" : "https://github.com/Orapdoo"
       }
     }
   ],
