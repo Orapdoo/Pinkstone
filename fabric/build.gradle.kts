@@ -133,7 +133,7 @@ tasks {
         destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("api-sources"))
     }
 
-    jar {
+    named<org.gradle.jvm.tasks.Jar>("remapJar") {
         destinationDirectory.set(file(rootProject.layout.buildDirectory).resolve("mods"))
     }
 
