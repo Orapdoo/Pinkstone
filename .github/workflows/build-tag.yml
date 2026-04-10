@@ -57,7 +57,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           files: build/mods/*fabric*.jar
           fail_on_unmatched_files: true
-          make_latest: false
+          make_latest: true
           generate_release_notes: true
           append_body: true
           body: |

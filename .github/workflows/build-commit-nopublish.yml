@@ -67,7 +67,7 @@ jobs:
           name: Pinkstone Fabric CI ${{ steps.meta.outputs.short_sha }}
           target_commitish: ${{ github.sha }}
           prerelease: false
-          make_latest: false
+          make_latest: true
           generate_release_notes: false
           body: |
             ## Pinkstone Fabric Commit Build
