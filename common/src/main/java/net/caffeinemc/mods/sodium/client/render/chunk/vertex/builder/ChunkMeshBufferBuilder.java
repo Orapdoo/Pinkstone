@@ -3,10 +3,8 @@ package net.caffeinemc.mods.sodium.client.render.chunk.vertex.builder;
 import net.caffeinemc.mods.sodium.client.render.chunk.terrain.material.Material;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexEncoder;
 import net.caffeinemc.mods.sodium.client.render.chunk.vertex.format.ChunkVertexType;
-import net.caffeinemc.mods.sodium.api.memory.MemoryIntrinsics;
 import org.lwjgl.system.MemoryUtil;
 
-import java.lang.foreign.MemorySegment;
 import java.nio.ByteBuffer;
 
 public class ChunkMeshBufferBuilder {
@@ -15,7 +13,7 @@ public class ChunkMeshBufferBuilder {
 
     private final int initialCapacity;
 
-    private MemorySegment buffer;
+    private long buffer;
     private int vertexCount;
     private int vertexCapacity;
 
@@ -42,7 +40,7 @@ public class ChunkMeshBufferBuilder {
 
         this.ensureCapacity(4);
 
-        this.encoder.write(this.buffer.address() + ((long) this.vertexCount * this.stride),
+        this.encoder.write(this.buffer + ((long) this.vertexCount * this.stride),
                 materialBits, vertices, this.sectionIndex);
         this.vertexCount += 4;
     }
@@ -66,7 +64,7 @@ public class ChunkMeshBufferBuilder {
     }
 
     private void reallocate(int vertexCount) {
-        this.buffer = MemorySegment.ofAddress(MemoryUtil.nmemRealloc(this.buffer == null ? 0L : this.buffer.address(), vertexCount * this.stride)).reinterpret(vertexCount * this.stride);
+        this.buffer = MemoryUtil.nmemRealloc(this.buffer, (long) vertexCount * this.stride);
         this.vertexCapacity = vertexCount;
     }
 
@@ -74,17 +72,17 @@ public class ChunkMeshBufferBuilder {
         this.vertexCount = 0;
         this.sectionIndex = sectionIndex;
 
-        if (this.buffer == null) {
+        if (this.buffer == 0L) {
             this.reallocate(this.initialCapacity);
         }
     }
 
     public void destroy() {
-        if (this.buffer != null) {
-            MemoryUtil.nmemFree(this.buffer.address());
+        if (this.buffer != 0L) {
+            MemoryUtil.nmemFree(this.buffer);
         }
 
-        this.buffer = null;
+        this.buffer = 0L;
         this.vertexCapacity = this.initialCapacity;
         this.vertexCount = 0;
     }
@@ -98,7 +96,7 @@ public class ChunkMeshBufferBuilder {
             throw new IllegalStateException("No vertex data in buffer");
         }
 
-        return this.buffer.asSlice(0, this.stride * this.vertexCount).asByteBuffer();
+        return MemoryUtil.memByteBuffer(this.buffer, this.stride * this.vertexCount);
     }
 
     public int count() {
