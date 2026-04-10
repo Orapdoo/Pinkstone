@@ -23,7 +23,7 @@ public class ChunkMeshBufferBuilder {
         this.encoder = vertexType.getEncoder();
         this.stride = vertexType.getVertexFormat().getStride();
 
-        this.buffer = null;
+        this.buffer = 0L;
 
         this.vertexCapacity = initialCapacity;
         this.initialCapacity = initialCapacity;
