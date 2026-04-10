@@ -9,22 +9,21 @@ Pinkstone is a high-performance Minecraft rendering and optimization mod based o
 
 ## Public Release Status
 
-- Fabric and NeoForge targets are included.
+- Fabric builds are the only published target.
 - CI workflows build, package, and publish artifact bundles.
-- Every commit push creates two separate GitHub prereleases: one for Fabric and one for NeoForge.
-- Tag pushes automatically compile and publish a release build with artifacts.
+- Every commit push creates one GitHub Fabric release build.
+- Tag pushes automatically compile and publish a Fabric release build with artifacts.
 - Public-facing metadata and branding are configured for Pinkstone.
 
 ## Automated Releases
 
 Pinkstone uses two release channels:
 
-- Commit channel: every commit on branches produces auto-generated prereleases.
+- Commit channel: every commit on branches produces an auto-generated Fabric release.
 	- `Pinkstone Fabric CI <short_sha>`
-	- `Pinkstone NeoForge CI <short_sha>`
 - Tag channel: tagged builds produce versioned release artifacts.
 
-This means you always get ready-to-use jar files for each loader without manual packaging.
+This means you always get ready-to-use Fabric jar files without manual packaging.
 
 ## Downloads
 
@@ -35,7 +34,7 @@ This means you always get ready-to-use jar files for each loader without manual 
 
 Install Pinkstone the same way as other client performance mods:
 
-1. Install either Fabric Loader or NeoForge for your Minecraft version.
+1. Install Fabric Loader for your Minecraft version.
 2. Download the Pinkstone jar from releases.
 3. Place the jar into your `.minecraft/mods` folder.
 4. Launch the game.

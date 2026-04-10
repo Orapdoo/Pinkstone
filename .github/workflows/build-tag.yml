@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   build:
-    if: ${{ !endsWith(github.ref_name, '-fabric') && !endsWith(github.ref_name, '-neoforge') }}
     runs-on: ubuntu-latest
     environment:
       name: prod
@@ -42,18 +41,18 @@ jobs:
           cache-read-only: true
 
       - name: Execute Gradle build
-        run: ./gradlew build -Pbuild.release=true
+        run: ./gradlew :fabric:build -Pbuild.release=true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: pinkstone-artifacts-${{ steps.meta.outputs.tag }}
-          path: build/mods/*.jar
+          path: build/mods/*fabric*.jar
 
       - name: Create Fabric GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.meta.outputs.tag }}-fabric
+          tag_name: ${{ steps.meta.outputs.tag }}
           name: Pinkstone Fabric ${{ steps.meta.outputs.tag }}
           target_commitish: ${{ github.sha }}
           files: build/mods/*fabric*.jar
@@ -65,34 +64,10 @@ jobs:
             ## Pinkstone Fabric Tagged Build
 
             - Source tag: `${{ steps.meta.outputs.tag }}`
-            - Release tag: `${{ steps.meta.outputs.tag }}-fabric`
             - Commit: `${{ github.sha }}`
             - Built at: `${{ steps.meta.outputs.release_time }}`
             
             Includes only Fabric artifacts from CI.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create NeoForge GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.meta.outputs.tag }}-neoforge
-          name: Pinkstone NeoForge ${{ steps.meta.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          files: build/mods/*neoforge*.jar
-          fail_on_unmatched_files: true
-          make_latest: false
-          generate_release_notes: true
-          append_body: true
-          body: |
-            ## Pinkstone NeoForge Tagged Build
-
-            - Source tag: `${{ steps.meta.outputs.tag }}`
-            - Release tag: `${{ steps.meta.outputs.tag }}-neoforge`
-            - Commit: `${{ github.sha }}`
-            - Built at: `${{ steps.meta.outputs.release_time }}`
-            
-            Includes only NeoForge artifacts from CI.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -101,4 +76,4 @@ jobs:
           ORG_GRADLE_PROJECT_caffeineMCMavenUsername: ${{ secrets.CAFFEINEMC_MAVEN_USERNAME }}
           ORG_GRADLE_PROJECT_caffeineMCMavenPassword: ${{ secrets.CAFFEINEMC_MAVEN_PASSWORD }}
         if: ${{ env.ORG_GRADLE_PROJECT_caffeineMCMavenUsername != '' && env.ORG_GRADLE_PROJECT_caffeineMCMavenPassword != '' }}
-        run: ./gradlew publishAllPublicationsToCaffeineMCRepository -Pbuild.release=true
+        run: ./gradlew :common:publishAllPublicationsToCaffeineMCRepository :frapi:publishAllPublicationsToCaffeineMCRepository :fabric:publishAllPublicationsToCaffeineMCRepository -Pbuild.release=true

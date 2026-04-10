@@ -33,10 +33,10 @@ jobs:
           cache-read-only: true
 
       - name: Execute Gradle build
-        run: ./gradlew build
+        run: ./gradlew :fabric:build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: pinkstone-artifacts-${{ steps.ref.outputs.branch }}
-          path: build/mods/*.jar
+          path: build/mods/*fabric*.jar

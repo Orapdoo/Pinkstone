@@ -52,13 +52,13 @@ jobs:
           cache-read-only: false
 
       - name: Execute Gradle build
-        run: ./gradlew build
+        run: ./gradlew :fabric:build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
           name: pinkstone-artifacts-${{ steps.ref.outputs.branch }}
-          path: build/mods/*.jar
+          path: build/mods/*fabric*.jar
 
       - name: Publish Fabric commit release
         uses: softprops/action-gh-release@v2
@@ -83,25 +83,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish NeoForge commit release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ci-neoforge-${{ github.sha }}
-          name: Pinkstone NeoForge CI ${{ steps.meta.outputs.short_sha }}
-          target_commitish: ${{ github.sha }}
-          prerelease: false
-          make_latest: false
-          generate_release_notes: false
-          body: |
-            ## Pinkstone NeoForge Commit Build
-
-            - Branch: `${{ steps.ref.outputs.branch }}`
-            - Commit: `${{ github.sha }}`
-            - Built at: `${{ steps.meta.outputs.release_time }}`
-
-            This release is generated automatically from CI and includes ready-to-use NeoForge jar artifacts.
-          files: |
-            build/mods/*neoforge*.jar
-          fail_on_unmatched_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
