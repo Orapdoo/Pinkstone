@@ -138,7 +138,9 @@ tasks {
     }
 
     processResources {
-        from(configurationCommonModResources)
+        from(configurationCommonModResources) {
+            exclude("pinkstone-icon.png")
+        }
         if (BuildConfig.SUPPORT_FRAPI) {
             from(configurationFrapiModResources)
         }
