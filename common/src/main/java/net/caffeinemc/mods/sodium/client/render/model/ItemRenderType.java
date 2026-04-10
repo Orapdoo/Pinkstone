@@ -17,6 +17,7 @@
 package net.caffeinemc.mods.sodium.client.render.model;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import net.minecraft.client.renderer.Sheets;
@@ -35,12 +36,14 @@ public enum ItemRenderType {
 	static final Map<RenderType, ItemRenderType> RENDER_TYPE_2_ENUM;
 
 	static {
-		RENDER_TYPE_2_ENUM = Map.of(
-				CUTOUT.renderType, CUTOUT,
-				TRANSLUCENT.renderType, TRANSLUCENT,
-				CUTOUT_BLOCK.renderType, CUTOUT_BLOCK,
-				TRANSLUCENT_BLOCK.renderType, TRANSLUCENT_BLOCK
-		);
+		var renderTypes = new LinkedHashMap<RenderType, ItemRenderType>();
+
+		for (var type : ItemRenderType.values()) {
+			// Some Minecraft versions alias these render layers to the same RenderType instance.
+			renderTypes.put(type.renderType, type);
+		}
+
+		RENDER_TYPE_2_ENUM = Map.copyOf(renderTypes);
 	}
 
 	// The atlas of the default render type should match the default QuadAtlas, which is currently BLOCK.
