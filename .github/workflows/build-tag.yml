@@ -12,16 +12,19 @@ permissions:
 
 jobs:
   build:
+    if: ${{ !endsWith(github.ref_name, '-fabric') && !endsWith(github.ref_name, '-neoforge') }}
     runs-on: ubuntu-latest
     environment:
       name: prod
 
     steps:
-      - name: Extract current branch name
+      - name: Extract tag metadata
         shell: bash
-        # bash pattern expansion to grab branch name without slashes
-        run: ref="${GITHUB_REF#refs/heads/}" && echo "branch=${ref////-}" >> $GITHUB_OUTPUT
-        id: ref
+        run: |
+          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "release_time=$(date -u +"%Y-%m-%d %H:%M UTC")" >> "$GITHUB_OUTPUT"
+        id: meta
       - name: Checkout sources
         uses: actions/checkout@v6
 
@@ -44,19 +47,52 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: pinkstone-artifacts-${{ steps.ref.outputs.branch }}
+          name: pinkstone-artifacts-${{ steps.meta.outputs.tag }}
           path: build/mods/*.jar
 
-      - name: Create GitHub Release
+      - name: Create Fabric GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/mods/*.jar
+          tag_name: ${{ steps.meta.outputs.tag }}-fabric
+          name: Pinkstone Fabric ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: build/mods/*fabric*.jar
+          fail_on_unmatched_files: true
+          make_latest: false
           generate_release_notes: true
           append_body: true
           body: |
-            Automated release built from tag ${{ github.ref_name }}.
+            ## Pinkstone Fabric Tagged Build
+
+            - Source tag: `${{ steps.meta.outputs.tag }}`
+            - Release tag: `${{ steps.meta.outputs.tag }}-fabric`
+            - Commit: `${{ github.sha }}`
+            - Built at: `${{ steps.meta.outputs.release_time }}`
             
-            Includes compiled Pinkstone artifacts from CI.
+            Includes only Fabric artifacts from CI.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create NeoForge GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}-neoforge
+          name: Pinkstone NeoForge ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: build/mods/*neoforge*.jar
+          fail_on_unmatched_files: true
+          make_latest: false
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ## Pinkstone NeoForge Tagged Build
+
+            - Source tag: `${{ steps.meta.outputs.tag }}`
+            - Release tag: `${{ steps.meta.outputs.tag }}-neoforge`
+            - Commit: `${{ github.sha }}`
+            - Built at: `${{ steps.meta.outputs.release_time }}`
+            
+            Includes only NeoForge artifacts from CI.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
