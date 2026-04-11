@@ -1,5 +1,6 @@
 package net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.trigger;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.caffeinemc.mods.sodium.client.SodiumClientMod;
 import net.caffeinemc.mods.sodium.client.render.chunk.translucent_sorting.SortBehavior;
@@ -51,6 +52,10 @@ public class SortTriggering {
     private final ObjectOpenHashSet<Vector3fc> triggeredNormals = new ObjectOpenHashSet<>();
     private int triggeredNormalCount = 0;
 
+    // Deduplicates section scheduling during one trigger pass.
+    private final LongOpenHashSet triggeredSections = new LongOpenHashSet();
+    private boolean deduplicateTriggerCallbacks;
+
     /**
      * A map of the number of times each sort type is currently in use.
      */
@@ -75,7 +80,9 @@ public class SortTriggering {
      */
     public void triggerSections(BiConsumer<Long, Boolean> triggerSectionCallback, CameraMovement movement) {
         this.triggeredNormals.clear();
+        this.triggeredSections.clear();
         this.triggerSectionCallback = triggerSectionCallback;
+        this.deduplicateTriggerCallbacks = true;
         var oldGfniTriggerCount = this.gfniTriggerCount;
         var oldDirectTriggerCount = this.directTriggerCount;
         this.gfniTriggerCount = 0;
@@ -92,6 +99,13 @@ public class SortTriggering {
         }
 
         this.triggerSectionCallback = null;
+        this.deduplicateTriggerCallbacks = false;
+    }
+
+    private void acceptTriggeredSection(long sectionPos, boolean isDirectTrigger) {
+        if (!this.deduplicateTriggerCallbacks || this.triggeredSections.add(sectionPos)) {
+            this.triggerSectionCallback.accept(sectionPos, isDirectTrigger);
+        }
     }
 
     private boolean isCatchingUp() {
@@ -105,7 +119,7 @@ public class SortTriggering {
         }
 
         this.triggeredNormals.add(normal);
-        this.triggerSectionCallback.accept(sectionPos, false);
+        this.acceptTriggeredSection(sectionPos, false);
         this.gfniTriggerCount++;
     }
 
@@ -115,7 +129,7 @@ public class SortTriggering {
             return;
         }
 
-        this.triggerSectionCallback.accept(sectionPos.asLong(), true);
+        this.acceptTriggeredSection(sectionPos.asLong(), true);
         this.directTriggerCount++;
     }
 

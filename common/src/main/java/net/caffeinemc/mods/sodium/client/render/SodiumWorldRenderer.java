@@ -57,12 +57,16 @@ import java.util.function.Consumer;
  * Provides an extension to vanilla's {@link LevelRenderer}.
  */
 public class SodiumWorldRenderer {
+    private static final double TRANSLUCENT_TRIGGER_STEP = 0.125D;
+    private static final double TRANSLUCENT_TRIGGER_STEP_SQ = TRANSLUCENT_TRIGGER_STEP * TRANSLUCENT_TRIGGER_STEP;
+
     private final Minecraft client;
 
     private ClientLevel level;
     private int renderDistance;
 
     private Vector3d lastCameraPos;
+    private Vector3d lastSortCameraPos;
     private double lastCameraPitch, lastCameraYaw;
     private FogParameters lastFogParameters = FogParameters.NONE;
     private Matrix4f lastProjectionMatrix;
@@ -195,6 +199,9 @@ public class SodiumWorldRenderer {
         if (this.lastCameraPos == null) {
             this.lastCameraPos = pos;
         }
+        if (this.lastSortCameraPos == null) {
+            this.lastSortCameraPos = pos;
+        }
         if (this.lastProjectionMatrix == null) {
             this.lastProjectionMatrix = new Matrix4f(matrices.projection());
         }
@@ -217,9 +224,11 @@ public class SodiumWorldRenderer {
         this.renderSectionManager.prepareFrame(pos);
 
         if (cameraLocationChanged) {
-            profiler.popPush("translucent_triggering");
-
-            this.renderSectionManager.processGFNIMovement(new CameraMovement(this.lastCameraPos, pos));
+            if (this.lastSortCameraPos.distanceSquared(pos) >= TRANSLUCENT_TRIGGER_STEP_SQ) {
+                profiler.popPush("translucent_triggering");
+                this.renderSectionManager.processGFNIMovement(new CameraMovement(this.lastSortCameraPos, pos));
+                this.lastSortCameraPos = pos;
+            }
             this.lastCameraPos = pos;
         }
 
@@ -294,7 +303,7 @@ public class SodiumWorldRenderer {
         }
 
         // translucency sorting can be disabled in development environments by setting the debug option in the config file
-        var sortBehavior = SortBehavior.DYNAMIC_DEFER_NEARBY_ZERO_FRAMES;
+        var sortBehavior = SortBehavior.DYNAMIC_DEFER_NEARBY_ONE_FRAME;
 
         if (PlatformRuntimeInformation.getInstance().isDevelopmentEnvironment()
                 && !SodiumClientMod.options().debug.terrainSortingEnabled) {
