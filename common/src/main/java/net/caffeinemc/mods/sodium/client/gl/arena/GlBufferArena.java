@@ -9,7 +9,6 @@ import net.caffeinemc.mods.sodium.client.gl.device.CommandList;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -324,14 +323,18 @@ public class GlBufferArena {
     }
 
     public boolean upload(CommandList commandList, Stream<PendingUpload> stream, float regionFillFractionInv) {
+        return this.upload(commandList, stream.toList(), regionFillFractionInv);
+    }
+
+    public boolean upload(CommandList commandList, Collection<PendingUpload> uploads, float regionFillFractionInv) {
         // Record the buffer object before we start any work
         // If the arena needs to re-allocate a buffer, this will allow us to check and return an appropriate flag
         GlBuffer buffer = this.arenaBuffer;
 
-        // A linked list is used as we'll be randomly removing elements and want O(1) performance
         long totalUploadSize = 0;
-        List<PendingUpload> queue = new LinkedList<>();
-        for (var upload : (Iterable<PendingUpload>) stream::iterator) {
+        List<PendingUpload> queue = new ArrayList<>(uploads.size());
+
+        for (var upload : uploads) {
             totalUploadSize += upload.getDataBuffer().getLength();
             queue.add(upload);
         }

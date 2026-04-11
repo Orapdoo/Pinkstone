@@ -61,8 +61,12 @@ public class RenderRegionManager {
     }
 
     private void uploadResults(CommandList commandList, RenderRegion region, Collection<BuilderTaskOutput> results) {
-        var uploads = new ArrayList<PendingSectionMeshUpload>();
-        var indexUploads = new ArrayList<PendingSectionIndexBufferUpload>();
+        int estimatedPassUploads = results.size() * DefaultTerrainRenderPasses.ALL.length;
+        var uploads = new ArrayList<PendingSectionMeshUpload>(estimatedPassUploads);
+        var vertexUploads = new ArrayList<PendingUpload>(estimatedPassUploads);
+
+        var indexUploads = new ArrayList<PendingSectionIndexBufferUpload>(results.size());
+        var indexBufferUploads = new ArrayList<PendingUpload>(results.size());
 
         for (BuilderTaskOutput result : results) {
             int renderSectionIndex = result.render.getSectionIndex();
@@ -72,6 +76,12 @@ public class RenderRegionManager {
             }
 
             if (result instanceof ChunkBuildOutput chunkBuildOutput) {
+                int firstBuildRelativeTime = -1;
+
+                if (!result.render.isBuilt()) {
+                    firstBuildRelativeTime = Math.toIntExact(System.currentTimeMillis() - region.getCreationTime());
+                }
+
                 for (TerrainRenderPass pass : DefaultTerrainRenderPasses.ALL) {
                     var storage = region.getStorage(pass);
 
@@ -82,17 +92,13 @@ public class RenderRegionManager {
 
                     BuiltSectionMeshParts mesh = chunkBuildOutput.getMesh(pass);
 
-                    // This is before new data is loaded. If this is the first build, isBuilt should be false.
-
-                    int meshTime = -1;
-
-                    if (!result.render.isBuilt()) {
-                        meshTime = Math.toIntExact(System.currentTimeMillis() - region.getCreationTime());
-                    }
-
                     if (mesh != null) {
-                        uploads.add(new PendingSectionMeshUpload(result.render, meshTime, mesh, pass,
-                                new PendingUpload(mesh.getVertexData())));
+                        var pendingUpload = new PendingUpload(mesh.getVertexData());
+
+                        uploads.add(new PendingSectionMeshUpload(result.render, firstBuildRelativeTime, mesh, pass,
+                                pendingUpload));
+
+                        vertexUploads.add(pendingUpload);
                     }
                 }
             }
@@ -127,7 +133,10 @@ public class RenderRegionManager {
                         continue;
                     }
 
-                    indexUploads.add(new PendingSectionIndexBufferUpload(result.render, new PendingUpload(buffer)));
+                    var pendingUpload = new PendingUpload(buffer);
+
+                    indexUploads.add(new PendingSectionIndexBufferUpload(result.render, pendingUpload));
+                    indexBufferUploads.add(pendingUpload);
                 }
             }
         }
@@ -150,8 +159,7 @@ public class RenderRegionManager {
 
         if (!uploads.isEmpty()) {
             var arena = resources.getGeometryArena();
-            boolean bufferChanged = arena.upload(commandList, uploads.stream()
-                    .map(upload -> upload.vertexUpload), regionFillFractionInv);
+            boolean bufferChanged = arena.upload(commandList, vertexUploads, regionFillFractionInv);
 
             // If any of the buffers changed, the tessellation will need to be updated
             // Once invalidated the tessellation will be re-created on the next attempted use
@@ -183,8 +191,7 @@ public class RenderRegionManager {
 
         if (!indexUploads.isEmpty()) {
             var arena = resources.getIndexArena();
-            indexBufferChanged = arena.upload(commandList, indexUploads.stream()
-                    .map(upload -> upload.indexBufferUpload), regionFillFractionInv);
+            indexBufferChanged = arena.upload(commandList, indexBufferUploads, regionFillFractionInv);
 
             for (PendingSectionIndexBufferUpload upload : indexUploads) {
                 var storage = region.createStorage(DefaultTerrainRenderPasses.TRANSLUCENT);
@@ -205,10 +212,10 @@ public class RenderRegionManager {
     }
 
     private Reference2ReferenceMap.FastEntrySet<RenderRegion, List<BuilderTaskOutput>> createMeshUploadQueues(Collection<BuilderTaskOutput> results) {
-        var map = new Reference2ReferenceOpenHashMap<RenderRegion, List<BuilderTaskOutput>>();
+        var map = new Reference2ReferenceOpenHashMap<RenderRegion, List<BuilderTaskOutput>>(Math.max(1, results.size()));
 
         for (var result : results) {
-            var queue = map.computeIfAbsent(result.render.getRegion(), k -> new ArrayList<>());
+            var queue = map.computeIfAbsent(result.render.getRegion(), k -> new ArrayList<>(4));
             queue.add(result);
         }
 

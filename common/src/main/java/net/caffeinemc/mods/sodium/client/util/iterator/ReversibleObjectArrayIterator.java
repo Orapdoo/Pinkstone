@@ -7,6 +7,8 @@ import java.util.NoSuchElementException;
 
 public class ReversibleObjectArrayIterator<T> implements Iterator<T> {
     private final T[] array;
+    private final int start;
+    private final int end;
     private final int direction;
 
     private int currentIndex;
@@ -18,10 +20,19 @@ public class ReversibleObjectArrayIterator<T> implements Iterator<T> {
 
     public ReversibleObjectArrayIterator(T[] array, int start, int end, boolean reverse) {
         this.array = array;
-        this.remaining = end - start;
+        this.start = start;
+        this.end = end;
 
         this.direction = reverse ? -1 : 1;
-        this.currentIndex = reverse ? end - 1 : start;
+
+        this.reset();
+    }
+
+    public ReversibleObjectArrayIterator<T> reset() {
+        this.remaining = this.end - this.start;
+        this.currentIndex = this.direction == -1 ? this.end - 1 : this.start;
+
+        return this;
     }
 
     public boolean hasNext() {

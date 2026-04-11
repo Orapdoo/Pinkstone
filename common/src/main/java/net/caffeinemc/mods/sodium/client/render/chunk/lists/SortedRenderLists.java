@@ -12,14 +12,18 @@ public class SortedRenderLists implements ChunkRenderListIterable {
     private static final SortedRenderLists EMPTY = new SortedRenderLists(ObjectArrayList.of());
 
     private final ObjectArrayList<ChunkRenderList> lists;
+    private final ReversibleObjectArrayIterator<ChunkRenderList> forwardIterator;
+    private final ReversibleObjectArrayIterator<ChunkRenderList> reverseIterator;
 
     SortedRenderLists(ObjectArrayList<ChunkRenderList> lists) {
         this.lists = lists;
+        this.forwardIterator = new ReversibleObjectArrayIterator<>(this.lists, false);
+        this.reverseIterator = new ReversibleObjectArrayIterator<>(this.lists, true);
     }
 
     @Override
     public ReversibleObjectArrayIterator<ChunkRenderList> iterator(boolean reverse) {
-        return new ReversibleObjectArrayIterator<>(this.lists, reverse);
+        return reverse ? this.reverseIterator.reset() : this.forwardIterator.reset();
     }
 
     public static SortedRenderLists empty() {

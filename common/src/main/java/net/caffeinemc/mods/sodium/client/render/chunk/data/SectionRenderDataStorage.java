@@ -12,7 +12,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
-import java.util.stream.Stream;
+import java.util.Collections;
 
 /**
  * The section render data storage stores the gl buffer segments of uploaded
@@ -177,7 +177,7 @@ public class SectionRenderDataStorage {
         // create and upload a new shared index buffer
         var buffer = SharedQuadIndexBuffer.createIndexBuffer(SharedQuadIndexBuffer.IndexType.INTEGER, this.sharedIndexCapacity);
         var pendingUpload = new PendingUpload(buffer);
-        var bufferChanged = arena.upload(commandList, Stream.of(pendingUpload), regionFillFractionInv);
+        var bufferChanged = arena.upload(commandList, Collections.singletonList(pendingUpload), regionFillFractionInv);
         this.sharedIndexAllocation = pendingUpload.getResult();
         buffer.free();
 
